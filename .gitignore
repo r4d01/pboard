@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+config.json
+data/
+build/
+client/*.app
+test-schedule
+test-client
+test-device/
+*.trace

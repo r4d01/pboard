@@ -1,0 +1,25 @@
+# syntax=docker/dockerfile:1
+# The SDK compiler runs on x86-64 and produces ARM executables.
+FROM debian:bookworm-slim AS toolchain
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git gcc libc6-dev libstdc++6 file && rm -rf /var/lib/apt/lists/*
+ARG SDK_COMMIT=23eb32c3a011a1df4ce3d8f22150dcdd34cbc75a
+RUN git init /opt/pocketbook-sdk \
+    && git -C /opt/pocketbook-sdk remote add origin https://github.com/pocketbook/SDK_6.3.0.git \
+    && git -C /opt/pocketbook-sdk sparse-checkout init --cone \
+    && git -C /opt/pocketbook-sdk sparse-checkout set SDK-A13 \
+    && git -C /opt/pocketbook-sdk fetch --depth=1 --filter=blob:none origin "$SDK_COMMIT" \
+    && git -C /opt/pocketbook-sdk checkout --detach FETCH_HEAD \
+    && test "$(git -C /opt/pocketbook-sdk rev-parse HEAD)" = "$SDK_COMMIT" \
+    && rm -rf /opt/pocketbook-sdk/.git
+ENV PBSDK=/opt/pocketbook-sdk/SDK-A13
+WORKDIR /src/client
+FROM toolchain AS build
+COPY client/build.sh client/dashboard.c client/config.h client/schedule.h client/test_schedule.c client/dashboard.cfg ./
+RUN gcc -std=gnu99 -Wall -Wextra test_schedule.c -o /tmp/test-schedule \
+    && /tmp/test-schedule && sh build.sh && file dashboard.app \
+    && mkdir -p /out/applications/dashboard \
+    && install -m 755 dashboard.app /out/applications/dashboard.app \
+    && install -m 644 dashboard.cfg /out/applications/dashboard/dashboard.cfg \
+    && sha256sum /out/applications/dashboard.app
+FROM scratch AS artifact
+COPY --from=build /out/ /

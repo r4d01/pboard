@@ -1,0 +1,8 @@
+{
+  "latitude": null,
+  "longitude": null,
+  "location": "Your town",
+  "timezone": "Europe/Prague",
+  "port": 8080,
+  "refresh_seconds": 1200
+}

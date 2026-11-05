@@ -1,0 +1,33 @@
+name: Test and build Dashboard
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update && sudo apt-get install -y gcc libcurl4-openssl-dev fonts-dejavu-core
+      - run: pip install -r requirements.txt
+      - run: mkdir -p build && gcc -std=gnu99 -Wall -Wextra -Werror client/test_schedule.c -o build/test-schedule && build/test-schedule
+      - run: python client/tests/run_tests.py
+      - run: python -m unittest -v test_server.py
+  reader-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build ARM reader application
+        run: docker buildx build --platform linux/amd64 --file Dockerfile.reader --output type=local,dest=./build .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dashboard-reader
+          path: build/applications/
+          if-no-files-found: error
